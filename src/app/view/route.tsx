@@ -1,0 +1,103 @@
+import { calculateServiceInfo } from '@/lib/military';
+import { NextRequest } from 'next/server';
+
+export const runtime = 'edge';
+
+function formatDateKorean(dateString: string): string {
+  const date = new Date(dateString);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+  return `${year}년 ${String(month).padStart(2, '0')}월 ${String(day).padStart(2, '0')}일`;
+}
+
+function formatDateDots(dateString: string): string {
+    const date = new Date(dateString);
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}.${month}.${day}`;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const startDate = searchParams.get('startdate');
+    const endDate = searchParams.get('enddate');
+
+    if (!startDate || !endDate) {
+      return new Response('Missing start date or end date', { status: 400 });
+    }
+
+    const formattedStartDate = startDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    const formattedEndDate = endDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+
+    const serviceInfo = calculateServiceInfo(formattedStartDate, formattedEndDate);
+
+    const svg = `
+      <svg width="400" height="190" viewBox="0 0 400 190" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .font { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Pretendard', Roboto, Helvetica, Arial, sans-serif; }
+          .bg-main { fill: #3A3635; }
+          .bg-header { fill: #2C2A29; }
+          .text-light { fill: #EAEAEA; font-weight: 600; font-size: 14px; }
+          .text-dday { fill: #EAEAEA; font-weight: 600; font-size: 16px; }
+          .text-gray { fill: #B0B0B0; font-size: 12px; }
+          .text-percent { fill: #B0B0B0; font-size: 11px; }
+          .text-title { fill: #EAEAEA; font-weight: 600; font-size: 14px; }
+          .text-date { fill: #EAEAEA; font-size: 13px; }
+          .progress-bg { fill: #4A4645; }
+          .progress-fg { fill: #82C8BD; }
+          .icon { fill: #82C8BD; }
+        </style>
+
+        <rect width="400" height="190" rx="8" class="bg-main"/>
+        <rect width="400" height="40" rx="8" ry="8" class="bg-header" />
+
+        <g class="font" transform="translate(20, 25)">
+          <path class="icon" d="M10.7071 2.29289C11.0976 1.90237 11.7308 1.90237 12.1213 2.29289L16.4142 6.58579C16.7893 6.96086 17 7.46957 17 8V15C17 16.1046 16.1046 17 15 17H8C6.89543 17 6 16.1046 6 15V8C6 7.46957 6.21071 6.96086 6.58579 6.58579L10.7071 2.29289Z" transform="translate(-5, -14) scale(0.9)"/>
+          <text x="20" y="0" class="text-dday">D${serviceInfo.dDay}</text>
+          <text x="360" y="0" text-anchor="end" class="text-light">${serviceInfo.currentRank} ${serviceInfo.currentHobong}</text>
+        </g>
+
+        <g class="font" transform="translate(20, 65)">
+          <text class="text-title">전역</text>
+          <text x="360" y="0" text-anchor="end" class="text-date">${formatDateKorean(serviceInfo.dischargeDate)}</text>
+          <rect y="10" width="360" height="6" rx="2" class="progress-bg" />
+          <rect y="10" width="${(serviceInfo.totalProgress / 100) * 360}" height="6" rx="2" class="progress-fg" />
+          <text y="32" class="text-percent">${serviceInfo.totalProgress.toFixed(5)}%</text>
+        </g>
+        
+        <g class="font" transform="translate(20, 125)">
+            <text class="text-gray">다음 호봉</text>
+            <text x="170" y="0" text-anchor="end" class="text-gray">${formatDateDots(serviceInfo.nextHobongDate)}</text>
+            <text y="20" class="text-light">${serviceInfo.nextHobongName}</text>
+            <rect y="30" width="170" height="4" rx="2" class="progress-bg" />
+            <rect y="30" width="${(serviceInfo.progressToNextHobong / 100) * 170}" height="4" rx="2" class="progress-fg" />
+            <text y="50" class="text-percent">${serviceInfo.progressToNextHobong.toFixed(5)}%</text>
+        </g>
+
+        <g class="font" transform="translate(210, 125)">
+            <text class="text-gray">다음 계급</text>
+            <text x="170" y="0" text-anchor="end" class="text-gray">${formatDateDots(serviceInfo.nextRankDate)}</text>
+            <text y="20" class="text-light">${serviceInfo.nextRankName}</text>
+            <rect y="30" width="170" height="4" rx="2" class="progress-bg" />
+            <rect y="30" width="${(serviceInfo.progressToNextRank / 100) * 170}" height="4" rx="2" class="progress-fg" />
+            <text y="50" class="text-percent">${serviceInfo.progressToNextRank.toFixed(5)}%</text>
+        </g>
+      </svg>
+    `;
+
+    return new Response(svg, {
+      headers: {
+        'Content-Type': 'image/svg+xml',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
+  } catch (e: any) {
+    console.error(e);
+    return new Response(`Failed to generate the image: ${e.message}`, {
+      status: 500,
+    });
+  }
+}
