@@ -3,7 +3,7 @@
 import { useState, useRef, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function Home() {
+const Home = () => {
   const [startDate, setStartDate] = useState({ year: '', month: '', day: '' });
   const [endDate, setEndDate] = useState({ year: '', month: '', day: '' });
   const router = useRouter();
@@ -119,4 +119,6 @@ export default function Home() {
       </div>
     </main>
   );
-}
+};
+
+export default Home;

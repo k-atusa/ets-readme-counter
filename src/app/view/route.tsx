@@ -3,23 +3,23 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
-function formatDateKorean(dateString: string): string {
+const formatDateKorean = (dateString: string): string => {
   const date = new Date(dateString);
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth() + 1;
   const day = date.getUTCDate();
   return `${year}년 ${String(month).padStart(2, '0')}월 ${String(day).padStart(2, '0')}일`;
-}
+};
 
-function formatDateDots(dateString: string): string {
-    const date = new Date(dateString);
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    return `${year}.${month}.${day}`;
-}
+const formatDateDots = (dateString: string): string => {
+  const date = new Date(dateString);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}.${month}.${day}`;
+};
 
-export async function GET(request: NextRequest) {
+export const GET = async (request: NextRequest) => {
   try {
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get('startdate');
@@ -101,4 +101,4 @@ export async function GET(request: NextRequest) {
       status: 500,
     });
   }
-}
+};

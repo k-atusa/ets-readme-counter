@@ -42,47 +42,47 @@ export const PAY_GRADES: PayGrade[] = [
  * 날짜 문자열(YYYY-MM-DD)을 KST 자정(UTC+9) 기준으로 Date 객체로 변환합니다.
  * @param dateString YYYY-MM-DD 형식의 날짜 문자열
  */
-function parseDateAsUTC(dateString: string): Date {
+const parseDateAsUTC = (dateString: string): Date => {
   return new Date(`${dateString}T00:00:00+09:00`);
-}
+};
 
 /**
  * 입대일로부터 특정 개월 수가 지난 후의 진급일(해당 월 1일)을 KST 자정 기준으로 계산합니다.
  * @param startDate 입대일
  * @param months 입대일로부터 지난 개월 수
  */
-function getPromotionDate(startDate: string, months: number): Date {
+const getPromotionDate = (startDate: string, months: number): Date => {
   const start = parseDateAsUTC(startDate);
   const promotionYear = start.getUTCFullYear() + Math.floor((start.getUTCMonth() + months) / 12);
   const promotionMonth = (start.getUTCMonth() + months) % 12;
   // KST 1일 00:00:00 에 해당하는 UTC 시간으로 설정
   const result = new Date(Date.UTC(promotionYear, promotionMonth, 1, -9));
   return result;
-}
+};
 
 /**
  * Date 객체를 YYYY-MM-01 형식의 문자열로 변환합니다.
  * UTC 날짜를 기준으로 연도와 월을 추출하여 항상 1일로 표시합니다.
  * @param date 변환할 Date 객체
  */
-function toYYYYMM01(date: Date): string {
+const toYYYYMM01 = (date: Date): string => {
   // KST 기준으로 날짜를 계산하기 위해 9시간(ms)을 더함
   const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
   const year = kstDate.getUTCFullYear();
   const month = String(kstDate.getUTCMonth() + 1).padStart(2, '0');
   const day = '01';
   return `${year}-${month}-${day}`;
-}
+};
 
-function calculateProgress(current: Date, start: Date, end: Date): number {
+const calculateProgress = (current: Date, start: Date, end: Date): number => {
   if (current.getTime() >= end.getTime()) return 100;
   if (current.getTime() <= start.getTime()) return 0;
   const totalDuration = end.getTime() - start.getTime();
   const elapsedDuration = current.getTime() - start.getTime();
   return Math.min((elapsedDuration / totalDuration) * 100, 100);
-}
+};
 
-export function calculateServiceInfo(startDate: string, endDate: string) {
+export const calculateServiceInfo = (startDate: string, endDate: string) => {
   const start = parseDateAsUTC(startDate);
   const end = parseDateAsUTC(endDate);
   const current = new Date(); // 현재 UTC 시간
@@ -149,4 +149,4 @@ export function calculateServiceInfo(startDate: string, endDate: string) {
     nextRankName: nextRankInfo && !isDischarged ? nextRankInfo.name : "민간인",
     progressToNextRank: Math.max(0, progressToNextRank),
   };
-}
+};
