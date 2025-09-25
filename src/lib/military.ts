@@ -38,29 +38,41 @@ export const PAY_GRADES: PayGrade[] = [
   { rank: '병장', grade: 4, period: 18 },
 ];
 
+
 const KST_OFFSET = 9 * 60 * 60 * 1000;
 
+function parseYMD(dateString: string) {
+  const [y, m, d] = dateString.split('-').map(Number);
+  return { year: y, monthIndex: m - 1, day: d };
+}
+
 function getCurrentKST(): Date {
-  const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
-  return new Date(utc + KST_OFFSET);
+  // Use Date.now() (UTC ms) and add KST offset to get the current KST wall-clock epoch.
+  return new Date(Date.now() + KST_OFFSET);
 }
 
 function parseDateAsKST(dateString: string): Date {
-  return new Date(`${dateString}T00:00:00+09:00`);
+  // Return a Date whose epoch corresponds to midnight at KST for the given Y-M-D.
+  const { year, monthIndex, day } = parseYMD(dateString);
+  const utcMsForKstMidnight = Date.UTC(year, monthIndex, day) - KST_OFFSET;
+  return new Date(utcMsForKstMidnight);
 }
 
 function getPromotionDate(startDate: string, months: number): Date {
-  const result = parseDateAsKST(startDate);
-  result.setMonth(result.getMonth() + months);
-  result.setDate(1);
-  return result;
+  // Compute the KST-midnight moment for the 1st day of (startMonth + months)
+  const { year, monthIndex } = parseYMD(startDate);
+  const targetUtcMsForKstMidnight = Date.UTC(year, monthIndex + months, 1) - KST_OFFSET;
+  return new Date(targetUtcMsForKstMidnight);
 }
 
 function toYYYYMMDD(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  // The Date objects used throughout represent KST-midnight instants.
+  // To format the KST date correctly regardless of runtime timezone,
+  // shift the epoch by KST_OFFSET and read the UTC fields.
+  const kst = new Date(date.getTime() + KST_OFFSET);
+  const year = kst.getUTCFullYear();
+  const month = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kst.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
