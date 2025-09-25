@@ -94,9 +94,10 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error(e);
-    return new Response(`Failed to generate the image: ${e.message}`, {
+    const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
+    return new Response(`Failed to generate the image: ${errorMessage}`, {
       status: 500,
     });
   }
