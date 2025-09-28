@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 const Home = () => {
   const [startDate, setStartDate] = useState({ year: '', month: '', day: '' });
   const [endDate, setEndDate] = useState({ year: '', month: '', day: '' });
+  const [branch, setBranch] = useState('army');
   const router = useRouter();
 
   const startMonthRef = useRef<HTMLInputElement>(null) as React.RefObject<HTMLInputElement>;
@@ -32,8 +33,7 @@ const Home = () => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formattedStartDate = `${startDate.year}${startDate.month.padStart(2, '0')}${startDate.day.padStart(2, '0')}`;
-    const formattedEndDate = `${endDate.year}${endDate.month.padStart(2, '0')}${endDate.day.padStart(2, '0')}`;
-    router.push(`/view?startdate=${formattedStartDate}&enddate=${formattedEndDate}`);
+    router.push(`/view?startdate=${formattedStartDate}&branch=${encodeURIComponent(branch)}`);
   };
 
   return (
@@ -74,34 +74,21 @@ const Home = () => {
             </div>
           </div>
           <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-400 mb-2">
-              전역일
+            <label htmlFor="branch" className="block text-sm font-medium text-gray-400 mb-2">
+              군별
             </label>
-            <div className="flex space-x-2">
-              <input
-                type="text" name="year" placeholder="YYYY" maxLength={4} value={endDate.year}
-                onChange={(e) => handleDateChange(e, setEndDate, endMonthRef)}
-                ref={endYearRef}
-                className="w-1/3 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                autoComplete='off'
-                required
-              />
-              <input
-                type="text" name="month" placeholder="MM" maxLength={2} value={endDate.month}
-                onChange={(e) => handleDateChange(e, setEndDate, endDayRef)}
-                ref={endMonthRef}
-                className="w-1/3 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                autoComplete='off'
-                required
-              />
-              <input
-                type="text" name="day" placeholder="DD" maxLength={2} value={endDate.day}
-                onChange={(e) => handleDateChange(e, setEndDate)}
-                ref={endDayRef}
-                className="w-1/3 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                autoComplete='off'
-                required
-              />
+            <div>
+              <select
+                id="branch"
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="army">육군 (18개월)</option>
+                <option value="marines">해병대 (18개월)</option>
+                <option value="navy">해군 (20개월)</option>
+                <option value="airforce">공군 (21개월)</option>
+              </select>
             </div>
           </div>
           <button

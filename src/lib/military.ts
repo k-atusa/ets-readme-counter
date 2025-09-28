@@ -36,42 +36,48 @@ export const PAY_GRADES: PayGrade[] = [
   { rank: '병장', grade: 2, period: 16 },
   { rank: '병장', grade: 3, period: 17 },
   { rank: '병장', grade: 4, period: 18 },
+  { rank: '병장', grade: 5, period: 19 },
+  { rank: '병장', grade: 6, period: 20 },
+  { rank: '병장', grade: 7, period: 21 },
 ];
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 /**
- * 날짜 문자열(YYYY-MM-DD)을 KST 자정(UTC+9) 기준으로 Date 객체로 변환합니다.
- * @param dateString YYYY-MM-DD 형식의 날짜 문자열
+ * YYYY-MM-DD -> KST 자정(UTC epoch) Date 반환
  */
-const parseDateAsUTC = (dateString: string): Date => {
-  return new Date(`${dateString}T00:00:00+09:00`);
+const parseDateAsKST = (dateString: string): Date => {
+  const [y, m, d] = dateString.split('-').map(Number);
+  // Date.UTC 년,월(0~11),일 에서 KST 자정(epoch)을 얻기 위해 KST offset을 뺌
+  const epoch = Date.UTC(y, m - 1, d) - KST_OFFSET_MS;
+  return new Date(epoch);
 };
 
 /**
- * 입대일로부터 특정 개월 수가 지난 후의 진급일(해당 월 1일)을 KST 자정 기준으로 계산합니다.
- * @param startDate 입대일
- * @param months 입대일로부터 지난 개월 수
+ * startDate 문자열(YYYY-MM-DD) 기준으로 months(개월) 지난 달의 1일 KST 자정 Date 반환
  */
 const getPromotionDate = (startDate: string, months: number): Date => {
-  const start = parseDateAsUTC(startDate);
-  const promotionYear = start.getUTCFullYear() + Math.floor((start.getUTCMonth() + months) / 12);
-  const promotionMonth = (start.getUTCMonth() + months) % 12;
-  // KST 1일 00:00:00 에 해당하는 UTC 시간으로 설정
-  const result = new Date(Date.UTC(promotionYear, promotionMonth, 1, -9));
-  return result;
+  const [y, m] = startDate.split('-').map(Number);
+  const startMonthIndex = m - 1;
+  const totalMonths = startMonthIndex + months;
+  const promotionYear = y + Math.floor(totalMonths / 12);
+  const promotionMonth = totalMonths % 12;
+  const epoch = Date.UTC(promotionYear, promotionMonth, 1) - KST_OFFSET_MS;
+  return new Date(epoch);
 };
 
 /**
- * Date 객체를 YYYY-MM-01 형식의 문자열로 변환합니다.
- * UTC 날짜를 기준으로 연도와 월을 추출하여 항상 1일로 표시합니다.
- * @param date 변환할 Date 객체
+ * Date 객체를 YYYY-MM-01 형식의 문자열로 변환 (KST 기준)
  */
 const toYYYYMM01 = (date: Date): string => {
-  // KST 기준으로 날짜를 계산하기 위해 9시간(ms)을 더함
-  const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  const year = kstDate.getUTCFullYear();
-  const month = String(kstDate.getUTCMonth() + 1).padStart(2, '0');
-  const day = '01';
-  return `${year}-${month}-${day}`;
+  // date is an epoch representing the KST midnight instant (UTC epoch = Date.UTC(y,m,d)-9h)
+  // to get the KST calendar fields, shift epoch by +9h then read UTC fields.
+  const kstEpoch = date.getTime() + KST_OFFSET_MS;
+  const kst = new Date(kstEpoch);
+  const year = kst.getUTCFullYear();
+  const month = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  return `${year}-${month}-01`;
 };
 
 const calculateProgress = (current: Date, start: Date, end: Date): number => {
@@ -83,56 +89,53 @@ const calculateProgress = (current: Date, start: Date, end: Date): number => {
 };
 
 export const calculateServiceInfo = (startDate: string, endDate: string) => {
-  const start = parseDateAsUTC(startDate);
-  const end = parseDateAsUTC(endDate);
-  const current = new Date(); // 현재 UTC 시간
+  // start/end are epochs representing KST midnights (UTC instants)
+  const start = parseDateAsKST(startDate);
+  const end = parseDateAsKST(endDate);
+  const now = new Date(); // current UTC-based epoch
 
   const totalService = end.getTime() - start.getTime();
-  const currentService = Math.max(0, current.getTime() - start.getTime());
-  
+  const currentService = Math.max(0, now.getTime() - start.getTime());
+
   const isDischarged = currentService >= totalService;
 
-  let dDay;
+  // D-Day using UTC epochs (end represents KST midnight -> UTC instant)
+  let dDay: string;
   if (isDischarged) {
-    // 전역일 KST 자정(UTC 전날 15:00)을 기준으로 D-Day 계산
-    const dischargeDayStartKST = new Date(end.getTime());
-    const currentDayStartKST = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0, 0, 0);
-    dDay = `+${Math.floor((currentDayStartKST.getTime() - dischargeDayStartKST.getTime()) / (1000 * 60 * 60 * 24)) + 1}`;
+    const daysAfter = Math.floor((now.getTime() - end.getTime()) / MS_PER_DAY);
+    dDay = `+${daysAfter + 1}`;
   } else {
-    // 전역일 KST 자정(UTC 전날 15:00)을 기준으로 D-Day 계산
-    const endOfDay = new Date(end.getTime());
-    endOfDay.setUTCHours(23, 59, 59, 999);
-    dDay = `-${Math.ceil((endOfDay.getTime() - current.getTime()) / (1000 * 60 * 60 * 24))}`;
+    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / MS_PER_DAY);
+    dDay = `-${daysLeft}`;
   }
 
   const totalProgress = Math.min((currentService / totalService) * 100, 100);
-  
-  let elapsedMonths = (current.getUTCFullYear() - start.getUTCFullYear()) * 12 + (current.getUTCMonth() - start.getUTCMonth());
-  // 현재 날짜의 '일'이 입대일의 '일'보다 작으면 아직 한 달이 다 차지 않은 것으로 간주
-  if (current.getUTCDate() < start.getUTCDate()) {
-    elapsedMonths--;
-  }
 
-  const currentPayGrade = PAY_GRADES.slice().reverse().find(pg => elapsedMonths >= pg.period) || PAY_GRADES[0];
-  const currentRankInfo = RANKS.slice().reverse().find(r => elapsedMonths >= r.period) || RANKS[0];
+  // Determine current pay grade and rank by comparing current UTC epoch to promotion epochs
+  const currentEpoch = now.getTime();
 
-  const nextPayGrade = PAY_GRADES.find(pg => pg.period > currentPayGrade.period);
-  
-  const nextRankInfo = RANKS.find(r => r.period > currentRankInfo.period);
+  const promotionEpoch = (months: number) => getPromotionDate(startDate, months).getTime();
 
-  const startOfCurrentHobong = getPromotionDate(startDate, currentPayGrade.period);
-  const endOfHobongPeriod = nextPayGrade ? getPromotionDate(startDate, nextPayGrade.period) : end;
+  const currentPayGrade = PAY_GRADES.slice().reverse().find(pg => currentEpoch >= promotionEpoch(pg.period)) || PAY_GRADES[0];
+  const currentRankInfo = RANKS.slice().reverse().find(r => currentEpoch >= promotionEpoch(r.period)) || RANKS[0];
+
+  // Only consider next promotions that happen before discharge
+  const nextPayGrade = PAY_GRADES.find(pg => pg.period > currentPayGrade.period && promotionEpoch(pg.period) < end.getTime());
+  const nextRankInfo = RANKS.find(r => r.period > currentRankInfo.period && promotionEpoch(r.period) < end.getTime());
+
+  const startOfCurrentHobong = new Date(promotionEpoch(currentPayGrade.period));
+  const endOfHobongPeriod = nextPayGrade ? new Date(promotionEpoch(nextPayGrade.period)) : end;
   const progressToNextHobong = isDischarged
     ? 100
-    : calculateProgress(current, startOfCurrentHobong, endOfHobongPeriod);
+    : calculateProgress(now, startOfCurrentHobong, endOfHobongPeriod);
 
   const startOfCurrentRank = currentRankInfo.period === 0
-    ? start // 이병의 시작일은 입대일 당일
-    : getPromotionDate(startDate, currentRankInfo.period);
-  const endOfRankPeriod = nextRankInfo ? getPromotionDate(startDate, nextRankInfo.period) : end;
+    ? start
+    : new Date(promotionEpoch(currentRankInfo.period));
+  const endOfRankPeriod = nextRankInfo ? new Date(promotionEpoch(nextRankInfo.period)) : end;
   const progressToNextRank = isDischarged
     ? 100
-    : calculateProgress(current, startOfCurrentRank, endOfRankPeriod);
+    : calculateProgress(now, startOfCurrentRank, endOfRankPeriod);
 
   return {
     dDay,
@@ -140,7 +143,7 @@ export const calculateServiceInfo = (startDate: string, endDate: string) => {
     currentHobong: isDischarged ? "" : `${currentPayGrade.grade}호봉`,
     dischargeDate: endDate,
     totalProgress,
-    
+
     nextHobongDate: nextPayGrade && !isDischarged ? toYYYYMM01(endOfHobongPeriod) : endDate,
     nextHobongName: nextPayGrade && !isDischarged ? `${nextPayGrade.rank} ${nextPayGrade.grade}호봉` : "민간인",
     progressToNextHobong: Math.max(0, progressToNextHobong),

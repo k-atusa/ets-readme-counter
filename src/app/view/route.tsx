@@ -2,6 +2,7 @@ import { calculateServiceInfo } from '@/lib/military';
 import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const formatDateKorean = (dateString: string): string => {
   const date = new Date(dateString);
@@ -24,13 +25,41 @@ export const GET = async (request: NextRequest) => {
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get('startdate');
     const endDate = searchParams.get('enddate');
+    const branch = searchParams.get('branch');
 
-    if (!startDate || !endDate) {
-      return new Response('Missing start date or end date', { status: 400 });
+    if (!startDate) {
+      return new Response('Missing start date', { status: 400 });
     }
 
     const formattedStartDate = startDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
-    const formattedEndDate = endDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+
+    // Determine endDate either from provided enddate (backwards compatible) or from branch mapping
+    let formattedEndDate: string | null = null;
+    if (endDate) {
+      formattedEndDate = endDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    } else if (branch) {
+      const monthsMap: Record<string, number> = {
+        army: 18,
+        marines: 18,
+        navy: 20,
+        airforce: 21,
+      };
+      const months = monthsMap[branch] ?? 18;
+      // compute end date as start + months - 1 day (so e.g., start 2025-03-04 + 18 months -> 2026-09-03)
+      const [y, m, d] = formattedStartDate.split('-').map(Number);
+      const endYear = y + Math.floor((m - 1 + months) / 12);
+      const endMonth = ((m - 1 + months) % 12) + 1;
+      // subtract 1 day to make end date the day before same-day-of-month
+  // Compute KST target same-day midnight epoch, then subtract 1 day (KST) -> format that KST date
+  // Simplest: take UTC midnight of target same-day and subtract 1 day, then read UTC Y-M-D (which equals KST date)
+  const endDateObj = new Date(Date.UTC(endYear, endMonth - 1, d) - MS_PER_DAY);
+  const ey = endDateObj.getUTCFullYear();
+  const em = String(endDateObj.getUTCMonth() + 1).padStart(2, '0');
+  const ed = String(endDateObj.getUTCDate()).padStart(2, '0');
+  formattedEndDate = `${ey}-${em}-${ed}`;
+    } else {
+      return new Response('Missing end date or branch', { status: 400 });
+    }
 
     const serviceInfo = calculateServiceInfo(formattedStartDate, formattedEndDate);
 
