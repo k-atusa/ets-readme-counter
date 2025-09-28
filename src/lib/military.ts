@@ -36,6 +36,9 @@ export const PAY_GRADES: PayGrade[] = [
   { rank: '병장', grade: 2, period: 16 },
   { rank: '병장', grade: 3, period: 17 },
   { rank: '병장', grade: 4, period: 18 },
+  { rank: '병장', grade: 5, period: 19 },
+  { rank: '병장', grade: 6, period: 20 },
+  { rank: '병장', grade: 7, period: 21 },
 ];
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -116,8 +119,9 @@ export const calculateServiceInfo = (startDate: string, endDate: string) => {
   const currentPayGrade = PAY_GRADES.slice().reverse().find(pg => currentEpoch >= promotionEpoch(pg.period)) || PAY_GRADES[0];
   const currentRankInfo = RANKS.slice().reverse().find(r => currentEpoch >= promotionEpoch(r.period)) || RANKS[0];
 
-  const nextPayGrade = PAY_GRADES.find(pg => pg.period > currentPayGrade.period);
-  const nextRankInfo = RANKS.find(r => r.period > currentRankInfo.period);
+  // Only consider next promotions that happen before discharge
+  const nextPayGrade = PAY_GRADES.find(pg => pg.period > currentPayGrade.period && promotionEpoch(pg.period) < end.getTime());
+  const nextRankInfo = RANKS.find(r => r.period > currentRankInfo.period && promotionEpoch(r.period) < end.getTime());
 
   const startOfCurrentHobong = new Date(promotionEpoch(currentPayGrade.period));
   const endOfHobongPeriod = nextPayGrade ? new Date(promotionEpoch(nextPayGrade.period)) : end;
