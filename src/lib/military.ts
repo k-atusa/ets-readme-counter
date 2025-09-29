@@ -97,7 +97,7 @@ export const calculateServiceInfo = (startDate: string, endDate: string) => {
   // All dates are handled in UTC
   const start = parseDateAsKST(startDate);
   const end = parseDateAsKST(endDate);
-  const now = new Date(Date.now());
+  const now = new Date();
 
   const totalService = end.getTime() - start.getTime();
   const currentService = Math.max(0, now.getTime() - start.getTime());
