@@ -12,6 +12,15 @@ const formatDateKorean = (dateString: string): string => {
   return `${year}년 ${String(month).padStart(2, '0')}월 ${String(day).padStart(2, '0')}일`;
 };
 
+const formatDateEnglish = (dateString: string): string => {
+  const date = new Date(dateString);
+  const year = date.getUTCFullYear();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[date.getUTCMonth()];
+  const day = date.getUTCDate();
+  return `${month} ${String(day).padStart(2, '0')}, ${year}`;
+};
+
 const formatDateDots = (dateString: string): string => {
   const date = new Date(dateString);
   const year = date.getUTCFullYear();
@@ -62,6 +71,37 @@ export const GET = async (request: NextRequest) => {
     }
 
     const serviceInfo = calculateServiceInfo(formattedStartDate, formattedEndDate);
+    const langParam = searchParams.get('lang') || 'kr';
+
+    // translate Korean outputs to English when lang=en
+    const translateRank = (krRank: string) => {
+      if (langParam !== 'en') return krRank;
+      const map: Record<string, string> = {
+        '이병': 'Private',
+        '일병': 'Private First Class',
+        '상병': 'Corporal',
+        '병장': 'Sergeant',
+        '민간인': 'ETS',
+      };
+      return map[krRank] ?? krRank;
+    };
+
+    const translateHobong = (krHobong: string) => {
+      if (langParam !== 'en' || !krHobong) return krHobong;
+      // convert "X호봉" to "X paygrade"
+      const n = krHobong.replace(/[^0-9]/g, '');
+      return n ? `PG ${n}` : krHobong;
+    };
+
+    const displayServiceInfo = {
+      ...serviceInfo,
+      currentRank: translateRank(serviceInfo.currentRank),
+      currentHobong: translateHobong(serviceInfo.currentHobong),
+      nextHobongName: langParam === 'en' && serviceInfo.nextHobongName !== '민간인'
+        ? `PG ${serviceInfo.nextHobongName.replace(/[^0-9]/g, '')}`
+        : (langParam === 'en' && serviceInfo.nextHobongName === '민간인' ? 'ETS' : serviceInfo.nextHobongName),
+      nextRankName: translateRank(serviceInfo.nextRankName),
+    };
     const debug = searchParams.get('debug') === '1';
     // compute some raw epoch values for troubleshooting
     const promotionEpoch = (months: number) => {
@@ -74,6 +114,29 @@ export const GET = async (request: NextRequest) => {
     };
     const currentUtc = Date.now();
     const currentPromoEpoch = promotionEpoch((serviceInfo.currentHobong ? Number(serviceInfo.currentHobong.replace(/[^0-9]/g, '')) : 0) + (serviceInfo.currentRank === '병장' ? 14 : 0));
+
+    const isEnglish = langParam === 'en';
+    const dischargeLabel = isEnglish ? 'ETS Date' : '전역';
+    const currentRankLabel = isEnglish ? 'Current Rank' : '현재 계급';
+    const nextHobongLabel = isEnglish ? 'Next Paygrade' : '다음 호봉';
+    const nextRankLabel = isEnglish ? 'Next Rank' : '다음 계급';
+    const progressLabel = isEnglish ? 'Progress' : '진행률';
+
+    const dischargeDateStr = isEnglish
+      ? formatDateEnglish(displayServiceInfo.dischargeDate)
+      : formatDateKorean(displayServiceInfo.dischargeDate);
+
+    const nextHobongDateStr = displayServiceInfo.nextHobongDate
+      ? isEnglish
+        ? formatDateEnglish(displayServiceInfo.nextHobongDate)
+        : formatDateDots(displayServiceInfo.nextHobongDate)
+      : '';
+
+    const nextRankDateStr = displayServiceInfo.nextRankDate
+      ? isEnglish
+        ? formatDateEnglish(displayServiceInfo.nextRankDate)
+        : formatDateDots(displayServiceInfo.nextRankDate)
+      : '';
 
     const svg = `
       <svg width="400" height="190" viewBox="0 0 400 190" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -101,34 +164,34 @@ export const GET = async (request: NextRequest) => {
 
         <g class="font" transform="translate(20, 25)">
           <path class="icon" d="M10.7071 2.29289C11.0976 1.90237 11.7308 1.90237 12.1213 2.29289L16.4142 6.58579C16.7893 6.96086 17 7.46957 17 8V15C17 16.1046 16.1046 17 15 17H8C6.89543 17 6 16.1046 6 15V8C6 7.46957 6.21071 6.96086 6.58579 6.58579L10.7071 2.29289Z" transform="translate(-5, -14) scale(0.9)"/>
-          <text x="20" y="0" class="text-dday">D${serviceInfo.dDay}</text>
-          <text x="360" y="0" text-anchor="end" class="text-light">${serviceInfo.currentRank} ${serviceInfo.currentHobong}</text>
+          <text x="20" y="0" class="text-dday">D${displayServiceInfo.dDay}</text>
+          <text x="360" y="0" text-anchor="end" class="text-light">${displayServiceInfo.currentRank} ${displayServiceInfo.currentHobong}</text>
         </g>
 
         <g class="font" transform="translate(20, 65)">
-          <text class="text-title">전역</text>
-          <text x="360" y="0" text-anchor="end" class="text-date">${formatDateKorean(serviceInfo.dischargeDate)}</text>
+          <text class="text-title">${dischargeLabel}</text>
+          <text x="360" y="0" text-anchor="end" class="text-date">${dischargeDateStr}</text>
           <rect y="10" width="360" height="6" rx="2" class="progress-bg" />
           <rect y="10" width="${(serviceInfo.totalProgress / 100) * 360}" height="6" rx="2" class="progress-fg" />
-          <text y="32" class="text-percent">${serviceInfo.totalProgress.toFixed(5)}%</text>
+          <text y="32" class="text-percent">${displayServiceInfo.totalProgress.toFixed(5)}%</text>
         </g>
         
         <g class="font" transform="translate(20, 125)">
-            <text class="text-gray">다음 호봉</text>
-            <text x="170" y="0" text-anchor="end" class="text-gray">${formatDateDots(serviceInfo.nextHobongDate)}</text>
-            <text y="20" class="text-light">${serviceInfo.nextHobongName}</text>
+            <text class="text-gray">${nextHobongLabel}</text>
+            <text x="170" y="0" text-anchor="end" class="text-gray">${nextHobongDateStr}</text>
+            <text y="20" class="text-light">${displayServiceInfo.nextHobongName}</text>
             <rect y="30" width="170" height="4" rx="2" class="progress-bg" />
             <rect y="30" width="${(serviceInfo.progressToNextHobong / 100) * 170}" height="4" rx="2" class="progress-fg" />
-            <text y="50" class="text-percent">${serviceInfo.progressToNextHobong.toFixed(5)}%</text>
+              <text y="50" class="text-percent">${displayServiceInfo.progressToNextHobong.toFixed(5)}%</text>
         </g>
 
         <g class="font" transform="translate(210, 125)">
-            <text class="text-gray">다음 계급</text>
-            <text x="170" y="0" text-anchor="end" class="text-gray">${formatDateDots(serviceInfo.nextRankDate)}</text>
-            <text y="20" class="text-light">${serviceInfo.nextRankName}</text>
+            <text class="text-gray">${nextRankLabel}</text>
+            <text x="170" y="0" text-anchor="end" class="text-gray">${nextRankDateStr}</text>
+            <text y="20" class="text-light">${displayServiceInfo.nextRankName}</text>
             <rect y="30" width="170" height="4" rx="2" class="progress-bg" />
-            <rect y="30" width="${(serviceInfo.progressToNextRank / 100) * 170}" height="4" rx="2" class="progress-fg" />
-            <text y="50" class="text-percent">${serviceInfo.progressToNextRank.toFixed(5)}%</text>
+            <rect y="30" width="${(displayServiceInfo.progressToNextRank / 100) * 170}" height="4" rx="2" class="progress-fg" />
+            <text y="50" class="text-percent">${displayServiceInfo.progressToNextRank.toFixed(5)}%</text>
         </g>
       </svg>
     `;
