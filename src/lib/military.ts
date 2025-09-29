@@ -63,7 +63,7 @@ const getPromotionDate = (startDate: string, months: number): Date => {
   // If enlistment is on the 1st day of the month, treat that month as month 1
   // (i.e., promotions are shifted earlier by one month). This matches real
   // cases where someone enlisting on the 1st immediately counts that month.
-  const offsetMonths = d === 1 ? (months === 0 ? 0 : months - 1) : months;
+  const offsetMonths = (d === 1 && months > 0) ? months - 1 : months;
   const totalMonths = startMonthIndex + offsetMonths;
   const promotionYear = y + Math.floor(totalMonths / 12);
   const promotionMonth = totalMonths % 12;
