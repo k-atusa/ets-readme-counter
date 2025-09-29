@@ -113,7 +113,7 @@ export const calculateServiceInfo = (startDate: string, endDate: string) => {
     dDay = `-${daysLeft}`;
   }
 
-  const totalProgress = Math.min(Number(((currentService / totalService) * 100).toFixed(5)), 100);
+  const totalProgress = calculateProgress(now, start, end);
 
   const currentEpoch = now.getTime();
 
