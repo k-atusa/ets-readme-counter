@@ -48,8 +48,7 @@ const Home = () => {
               type="button"
               aria-label="Korean"
               onClick={() => setLang('kr')}
-              className={`px-2 py-1 rounded ${lang === 'kr' ? 'ring-2 ring-offset-1' : ''}`}
-              style={{ background: 'transparent' }}
+              className={`px-2 py-1 rounded bg-transparent transition-all ${lang === 'kr' ? 'border-2 border-[#82C8BD]' : 'border-2 border-transparent'}`}
             >
               🇰🇷
             </button>
@@ -57,8 +56,7 @@ const Home = () => {
               type="button"
               aria-label="English"
               onClick={() => setLang('en')}
-              className={`px-2 py-1 rounded ${lang === 'en' ? 'ring-2 ring-offset-1' : ''}`}
-              style={{ background: 'transparent' }}
+              className={`px-2 py-1 rounded bg-transparent transition-all ${lang === 'en' ? 'border-2 border-[#82C8BD]' : 'border-2 border-transparent'}`}
             >
               🇺🇸
             </button>
