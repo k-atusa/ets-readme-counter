@@ -58,9 +58,13 @@ const parseDateAsKST = (dateString: string): Date => {
  * startDate 문자열(YYYY-MM-DD) 기준으로 months(개월) 지난 달의 1일 KST 자정 Date 반환
  */
 const getPromotionDate = (startDate: string, months: number): Date => {
-  const [y, m] = startDate.split('-').map(Number);
+  const [y, m, d] = startDate.split('-').map(Number);
   const startMonthIndex = m - 1;
-  const totalMonths = startMonthIndex + months;
+  // If enlistment is on the 1st day of the month, treat that month as month 1
+  // (i.e., promotions are shifted earlier by one month). This matches real
+  // cases where someone enlisting on the 1st immediately counts that month.
+  const offsetMonths = (d === 1 && months > 0) ? months - 1 : months;
+  const totalMonths = startMonthIndex + offsetMonths;
   const promotionYear = y + Math.floor(totalMonths / 12);
   const promotionMonth = totalMonths % 12;
   const epoch = Date.UTC(promotionYear, promotionMonth, 1) - KST_OFFSET_MS;
@@ -85,21 +89,21 @@ const calculateProgress = (current: Date, start: Date, end: Date): number => {
   if (current.getTime() <= start.getTime()) return 0;
   const totalDuration = end.getTime() - start.getTime();
   const elapsedDuration = current.getTime() - start.getTime();
-  return Math.min((elapsedDuration / totalDuration) * 100, 100);
+  // Return higher precision (5 decimal places) to avoid downstream truncation issues
+  return Math.min(Number((elapsedDuration / totalDuration * 100).toFixed(5)), 100);
 };
 
 export const calculateServiceInfo = (startDate: string, endDate: string) => {
-  // start/end are epochs representing KST midnights (UTC instants)
+  // All dates are handled in UTC
   const start = parseDateAsKST(startDate);
   const end = parseDateAsKST(endDate);
-  const now = new Date(); // current UTC-based epoch
+  const now = new Date();
 
   const totalService = end.getTime() - start.getTime();
   const currentService = Math.max(0, now.getTime() - start.getTime());
 
   const isDischarged = currentService >= totalService;
 
-  // D-Day using UTC epochs (end represents KST midnight -> UTC instant)
   let dDay: string;
   if (isDischarged) {
     const daysAfter = Math.floor((now.getTime() - end.getTime()) / MS_PER_DAY);
@@ -109,9 +113,8 @@ export const calculateServiceInfo = (startDate: string, endDate: string) => {
     dDay = `-${daysLeft}`;
   }
 
-  const totalProgress = Math.min((currentService / totalService) * 100, 100);
+  const totalProgress = calculateProgress(now, start, end);
 
-  // Determine current pay grade and rank by comparing current UTC epoch to promotion epochs
   const currentEpoch = now.getTime();
 
   const promotionEpoch = (months: number) => getPromotionDate(startDate, months).getTime();
@@ -142,14 +145,14 @@ export const calculateServiceInfo = (startDate: string, endDate: string) => {
     currentRank: isDischarged ? "민간인" : currentRankInfo.name,
     currentHobong: isDischarged ? "" : `${currentPayGrade.grade}호봉`,
     dischargeDate: endDate,
-    totalProgress,
+  totalProgress,
 
     nextHobongDate: nextPayGrade && !isDischarged ? toYYYYMM01(endOfHobongPeriod) : endDate,
     nextHobongName: nextPayGrade && !isDischarged ? `${nextPayGrade.rank} ${nextPayGrade.grade}호봉` : "민간인",
-    progressToNextHobong: Math.max(0, progressToNextHobong),
+  progressToNextHobong: Math.max(0, Number(progressToNextHobong.toFixed(5))),
 
     nextRankDate: nextRankInfo && !isDischarged ? toYYYYMM01(endOfRankPeriod) : endDate,
     nextRankName: nextRankInfo && !isDischarged ? nextRankInfo.name : "민간인",
-    progressToNextRank: Math.max(0, progressToNextRank),
+  progressToNextRank: Math.max(0, Number(progressToNextRank.toFixed(5))),
   };
 };

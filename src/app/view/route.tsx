@@ -62,6 +62,18 @@ export const GET = async (request: NextRequest) => {
     }
 
     const serviceInfo = calculateServiceInfo(formattedStartDate, formattedEndDate);
+    const debug = searchParams.get('debug') === '1';
+    // compute some raw epoch values for troubleshooting
+    const promotionEpoch = (months: number) => {
+      const [y, m] = formattedStartDate.split('-').map(Number);
+      const totalMonths = (m - 1) + months;
+      const py = y + Math.floor(totalMonths / 12);
+      const pm = totalMonths % 12;
+      // UTC instant representing KST midnight of the 1st of promotion month
+      return Date.UTC(py, pm, 1) - (9 * 60 * 60 * 1000);
+    };
+    const currentUtc = Date.now();
+    const currentPromoEpoch = promotionEpoch( (serviceInfo.currentHobong ? Number(serviceInfo.currentHobong.replace(/[^0-9]/g,'')) : 0) + (serviceInfo.currentRank === '병장' ? 14 : 0) );
 
     const svg = `
       <svg width="400" height="190" viewBox="0 0 400 190" fill="none" xmlns="http://www.w3.org/2000/svg">
