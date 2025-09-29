@@ -50,13 +50,13 @@ export const GET = async (request: NextRequest) => {
       const endYear = y + Math.floor((m - 1 + months) / 12);
       const endMonth = ((m - 1 + months) % 12) + 1;
       // subtract 1 day to make end date the day before same-day-of-month
-  // Compute KST target same-day midnight epoch, then subtract 1 day (KST) -> format that KST date
-  // Simplest: take UTC midnight of target same-day and subtract 1 day, then read UTC Y-M-D (which equals KST date)
-  const endDateObj = new Date(Date.UTC(endYear, endMonth - 1, d) - MS_PER_DAY);
-  const ey = endDateObj.getUTCFullYear();
-  const em = String(endDateObj.getUTCMonth() + 1).padStart(2, '0');
-  const ed = String(endDateObj.getUTCDate()).padStart(2, '0');
-  formattedEndDate = `${ey}-${em}-${ed}`;
+      // Compute KST target same-day midnight epoch, then subtract 1 day (KST) -> format that KST date
+      // Simplest: take UTC midnight of target same-day and subtract 1 day, then read UTC Y-M-D (which equals KST date)
+      const endDateObj = new Date(Date.UTC(endYear, endMonth - 1, d) - MS_PER_DAY);
+      const ey = endDateObj.getUTCFullYear();
+      const em = String(endDateObj.getUTCMonth() + 1).padStart(2, '0');
+      const ed = String(endDateObj.getUTCDate()).padStart(2, '0');
+      formattedEndDate = `${ey}-${em}-${ed}`;
     } else {
       return new Response('Missing end date or branch', { status: 400 });
     }
@@ -73,7 +73,7 @@ export const GET = async (request: NextRequest) => {
       return Date.UTC(py, pm, 1) - (9 * 60 * 60 * 1000);
     };
     const currentUtc = Date.now();
-    const currentPromoEpoch = promotionEpoch( (serviceInfo.currentHobong ? Number(serviceInfo.currentHobong.replace(/[^0-9]/g,'')) : 0) + (serviceInfo.currentRank === '병장' ? 14 : 0) );
+    const currentPromoEpoch = promotionEpoch((serviceInfo.currentHobong ? Number(serviceInfo.currentHobong.replace(/[^0-9]/g, '')) : 0) + (serviceInfo.currentRank === '병장' ? 14 : 0));
 
     const svg = `
       <svg width="400" height="190" viewBox="0 0 400 190" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -90,6 +90,10 @@ export const GET = async (request: NextRequest) => {
           .progress-bg { fill: #4A4645; }
           .progress-fg { fill: #82C8BD; }
           .icon { fill: #82C8BD; }
+          svg { background: #f0f0f0; }
+          @media (prefers-color-scheme: dark) {
+            svg { background: #131010; }
+          }
         </style>
 
         <rect width="400" height="190" rx="8" class="bg-main"/>
