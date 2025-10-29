@@ -153,10 +153,6 @@ export const GET = async (request: NextRequest) => {
           .progress-bg { fill: #4A4645; }
           .progress-fg { fill: #82C8BD; }
           .icon { fill: #82C8BD; }
-          svg { background: #f0f0f0; }
-          @media (prefers-color-scheme: dark) {
-            svg { background: #131010; }
-          }
         </style>
 
         <rect width="400" height="190" rx="8" class="bg-main"/>
